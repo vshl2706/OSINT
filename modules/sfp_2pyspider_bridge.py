@@ -1,45 +1,41 @@
-from __future__ import unicode_literals
-
-import os
-import sys
-import six
-import copy
-import time
-import json
+from spiderfoot import SpiderFootPlugin, SpiderFootEvent
+from modules.pyspider_fetcher import Fetcher
+import queue
 import logging
-import traceback
-import functools
-import threading
-import tornado.ioloop
-import tornado.httputil
-import tornado.httpclient
-import pyspider
 
-from six.moves import queue, http_cookies
-from six.moves.urllib.robotparser import RobotFileParser
-from requests import cookies
-from six.moves.urllib.parse import urljoin, urlsplit
-from tornado import gen
-from tornado.curl_httpclient import CurlAsyncHTTPClient
-from tornado.simple_httpclient import SimpleAsyncHTTPClient
+class sfp_pyspider_bridge(SpiderFootPlugin):
 
-from pyspider.libs import utils, dataurl, counter
-from pyspider.libs.url import quote_chinese
-from .cookie_utils import extract_cookies_to_jar
-logger = logging.getLogger('fetcher')
+    def __init__(self):
+        super().__init__()
+        self.queue_in = queue.Queue()
+        self.queue_out = queue.Queue()
+        self.fetcher = None
 
-import socks
-import socket
+    def setup(self, sfc, userOpts=dict()):
+        self.fetcher = Fetcher(self.queue_in, self.queue_out, proxy="socks5h://127.0.0.1:9050")
+        # Optionally start fetcher in thread or async loop here
 
-def patch_socket_to_tor():
-    """
-    Route all HTTP requests via Tor (SOCKS5 proxy).
-    Required to access .onion domains anonymously.
-    """
-    socket.set_default_proxy(socks.SOCKS, "127.0.0.1", 9050)
-    socket.socket = socks.socksocket
-    logger.info("SOCKS5 Tor proxy as been applied to socket")
+    def watchedEvents(self):
+        return ["TOR_DOMAIN_NAME", "URL"]
 
-patch_socket_to_tor()
+    def producedEvents(self):
+        return ["TOR_ONION_URL"]
 
-tornado.httpclient.AsyncHTTPClient.configure("tornado.curl_httpclient.CurlAsyncHTTPClient")
+    def handleEvent(self, event):
+        target = event.data
+        if not target.startswith("http"):
+            return
+
+        self.info(f"[PyspiderBridge] Crawling: {target}")
+        self.queue_in.put({
+            "url": target,
+            "callback": "parse",  # Optional: name of callback if you're emulating Pyspider job
+        })
+
+        try:
+            result = self.queue_out.get(timeout=60)  # Adjust timeout as needed
+            if result and 'url' in result:
+                evt = SpiderFootEvent("TOR_ONION_URL", result['url'], self.__name__, event)
+                self.notifyListeners(evt)
+        except queue.Empty:
+            self.info("No response from fetcher.")
