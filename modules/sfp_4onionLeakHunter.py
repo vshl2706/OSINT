@@ -1,5 +1,3 @@
-
-
 import re
 import time
 import socket
@@ -32,24 +30,24 @@ class sfp_4onionLeakHunter(SpiderFootPlugin):
     }
 
 
-opts = {
-    # 'keyword': 'DRDO, defence, classified',
-    'keyword': 'Insider Wallet, Superlist',
-    'tor_proxy': 'socks5h://127.0.0.1:9150',
-    'max_depth': 2,
-    'max_pages': 5,
-    'user_agent': 'Mozilla/5.0 (Windows NT 10.0; rv:91.0) Gecko/20100101 Firefox/91.0',
-    'timeout': 90,
-    'verify': False,
-    'forum_patterns': [
-        r'/forum/',
-        r'/board/',
-        r'/thread',
-        r'/topic',
-        r'/index\.php\?topic=',
-        r'\.php\?board='
-    ]
-}
+    opts = {
+        'keyword': 'DRDO, defence, classified',
+        # 'keyword': 'Insider Wallet, Superlist',
+        'tor_proxy': 'socks5h://127.0.0.1:9150',
+        'max_depth': 2,
+        'max_pages': 5,
+        'user_agent': 'Mozilla/5.0 (Windows NT 10.0; rv:91.0) Gecko/20100101 Firefox/91.0',
+        'timeout': 90,
+        'verify': False,
+        'forum_patterns': [
+            r'/forum/',
+            r'/board/',
+            r'/thread',
+            r'/topic',
+            r'/index\.php\?topic=',
+            r'\.php\?board='
+        ]
+    }
 
 
     optdescs = {
@@ -97,7 +95,7 @@ opts = {
         try:
             parsed = urlparse(self.opts['tor_proxy'])
             proxy_host = parsed.hostname
-            proxy_port = parsed.port if parsed.port else 9050
+            proxy_port = parsed.port if parsed.port else 9150
             
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             sock.settimeout(5)
